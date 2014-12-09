@@ -1,10 +1,10 @@
 ### Multidimensional iterators
 module IteratorsMD
 
-import Base: start, _start, done, next, getindex, setindex!, linearindexing
+import Base: start, _start, done, next, getindex, setindex!, linearindexing, min
 import Base: @nref, @ncall, @nif, @nexprs, LinearFast, LinearSlow
 
-export eachindex
+export CartesianIndex, IndexIterator, eachindex
 
 # Traits for linear indexing
 linearindexing(::BitArray) = LinearFast()
@@ -55,17 +55,14 @@ end
 end
 
 # indexing
+getindex(index::CartesianIndex, i::Integer) = getfield(index, i)
+
 stagedfunction getindex{N}(A::AbstractArray, index::CartesianIndex{N})
     :(@nref $N A d->getfield(index,d))
 end
 stagedfunction setindex!{N}(A::AbstractArray, v, index::CartesianIndex{N})
     :((@nref $N A d->getfield(index,d)) = v)
 end
-
-# Prevent an ambiguity warning
-gen_cartesian(1) # to make sure the next two lines are valid
-next(R::StepRange, state::(Bool, CartesianIndex{1})) = R[state[2].I_1], (state[2].I_1==length(R), CartesianIndex_1(state[2].I_1+1))
-next{T}(R::UnitRange{T}, state::(Bool, CartesianIndex{1})) = R[state[2].I_1], (state[2].I_1==length(R), CartesianIndex_1(state[2].I_1+1))
 
 # iteration
 eachindex(A::AbstractArray) = IndexIterator(size(A))
@@ -89,6 +86,11 @@ stagedfunction _start{T,N}(A::AbstractArray{T,N}, ::LinearSlow)
         return z, $indextype($(args...))
     end
 end
+
+# Prevent an ambiguity warning
+gen_cartesian(1) # to make sure the next two lines are valid
+next(R::StepRange, state::(Bool, CartesianIndex{1})) = R[state[2].I_1], (state[2].I_1==length(R), CartesianIndex_1(state[2].I_1+1))
+next{T}(R::UnitRange{T}, state::(Bool, CartesianIndex{1})) = R[state[2].I_1], (state[2].I_1==length(R), CartesianIndex_1(state[2].I_1+1))
 
 stagedfunction next{T,N}(A::AbstractArray{T,N}, state::(Bool, CartesianIndex{N}))
     indextype, _ = gen_cartesian(N)
@@ -122,6 +124,32 @@ done(R::FloatRange, state::(Bool, CartesianIndex{1})) = state[1]
 
 done{T,N}(A::AbstractArray{T,N}, state::(Bool, CartesianIndex{N})) = state[1]
 done{N}(iter::IndexIterator{N}, state::(Bool, CartesianIndex{N})) = state[1]
+
+# arithmetic
+for op in (:+, :-)
+    @eval begin
+        stagedfunction ($op){M,N}(I1::CartesianIndex{M}, I2::CartesianIndex{N})
+            MN = max(M,N)
+            indextype, _ = gen_cartesian(MN)
+            fields = [symbol("I_$d") for d = 1:MN]
+            # "Missing" fields are implicit zeros
+            s1 = [d <= M ? Expr(:., :I1, QuoteNode(fields[d])) : 0 for d = 1:MN]
+            s2 = [d <= N ? Expr(:., :I2, QuoteNode(fields[d])) : 0 for d = 1:MN]
+            args = [:($($op)($(s1[d]),$(s2[d]))) for d = 1:MN]
+            :($indextype($(args...)))
+        end
+    end
+end
+
+# Other operations
+stagedfunction min{N}(I1::CartesianIndex{N}, I2::CartesianIndex{N})
+    indextype, _ = gen_cartesian(N)
+    fields = [symbol("I_$d") for d = 1:N]
+    s1 = [Expr(:., :I1, QuoteNode(fields[d])) for d = 1:N]
+    s2 = [Expr(:., :I2, QuoteNode(fields[d])) for d = 1:N]
+    args = [:(min($(s1[d]),$(s2[d]))) for d = 1:N]
+    :($indextype($(args...)))
+end
 
 end  # IteratorsMD
 
