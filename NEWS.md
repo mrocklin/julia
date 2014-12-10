@@ -65,6 +65,8 @@ Compiler improvements
 
   * Accessing fields that are always initialized no longer produces undefined checks ([#8827]).
 
+  * `--no-depwarn` command line flag added to turn off syntax and method deprecation warnings ([#9294]).
+
 Library improvements
 --------------------
 
