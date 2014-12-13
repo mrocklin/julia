@@ -111,23 +111,21 @@ function find_system_linker()
 
     # On Windows, check to see if WinRPM is installed, and if so, see if binutils is installed
     @windows_only try
-        # Warn about LLVM < 3.5.0
-        if convert(VersionNumber, Base.libllvm_version) < v"3.5.0"
-            LLVM_msg = "Building sys.dll on Windows against LLVM < 3.5.0 can cause incorrect backtraces!"
-            LLVM_msg *= " Delete generated sys.dll to avoid these problems"
-            warn( LLVM_msg )
-        end
-
         using WinRPM
         if WinRPM.installed("binutils")
+            # Warn about LLVM < 3.5.0
+            if convert(VersionNumber, Base.libllvm_version) < v"3.5.0"
+                LLVM_msg = "Building sys.dll on Windows with LLVM < 3.5.0 can cause incorrect backtraces!"
+                LLVM_msg *= " Delete generated sys.dll to avoid these problems"
+                warn( LLVM_msg )
+            end
+
             ENV["PATH"] = "$(ENV["PATH"]):$(joinpath(WinRPM.installdir,"usr","$(Sys.ARCH)-w64-mingw32","sys-root","mingw","bin"))"
         else
             throw()
         end
     catch
-        if convert(VersionNumber, Base.libllvm_version) >= v"3.5.0"
-            warn("Install Binutils via WinRPM.install(\"binutils\") to generate sys.dll for faster startup times" )
-        end
+        warn("Install Binutils via WinRPM.install(\"binutils\") to generate sys.dll for faster startup times" )
     end
 
 

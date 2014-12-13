@@ -271,6 +271,8 @@ endif
 	# Copy system image
 	$(INSTALL_F) $(build_private_libdir)/sys.ji $(DESTDIR)$(private_libdir)
 	$(INSTALL_M) $(build_private_libdir)/sys.$(SHLIB_EXT) $(DESTDIR)$(private_libdir)
+	# Copy in system image build script
+	$(INSTALL_M) contrib/build_sysimg.jl $(DESTDIR)$(bindir)
 	# Copy in all .jl sources as well
 	cp -R -L $(build_datarootdir)/julia $(DESTDIR)$(datarootdir)/
 	# Copy documentation
